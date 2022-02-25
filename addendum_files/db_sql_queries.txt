@@ -1,0 +1,512 @@
+--
+-- PostgreSQL database 
+--
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////CREATE TABLES////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CREATE TABLE public.booking (
+    booking_number integer NOT NULL,
+    customer_sin character varying(9) NOT NULL,
+    brand_id integer NOT NULL,
+    franchise_id integer NOT NULL,
+    room_number integer NOT NULL,
+    renting_number integer,
+    arrival_date date NOT NULL,
+    departure_date date NOT NULL,
+    archived boolean,
+    CONSTRAINT chk_valid_date_range CHECK ((departure_date > arrival_date))
+);
+
+CREATE SEQUENCE public.booking_booking_number_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+CREATE TABLE public.booking_history (
+    booking_number integer NOT NULL,
+    customer_sin character varying(9),
+    brand_id integer,
+    franchise_id integer,
+    room_number integer,
+    renting_number integer,
+    arrival_date date,
+    departure_date date
+);
+
+CREATE TABLE public.customer (
+    sin_number character varying(9) NOT NULL,
+    first_name character varying(20),
+    middle_initial character varying(20),
+    last_name character varying(20),
+    street_number integer,
+    street_name character varying(20),
+    unit_number integer,
+    city character varying(20),
+    province character varying(2),
+    country character varying(2),
+    postal_code character varying(6),
+    registration_date date
+);
+
+CREATE TABLE public.renting (
+    renting_number integer NOT NULL,
+    customer_sin character varying(9) NOT NULL,
+    employee_sin character varying(9) NOT NULL,
+    brand_id integer NOT NULL,
+    franchise_id integer NOT NULL,
+    room_number integer NOT NULL,
+    booking_number integer,
+    arrival_date date DEFAULT CURRENT_DATE NOT NULL,
+    departure_date date NOT NULL,
+    archived boolean,
+    payment boolean,
+    CONSTRAINT chk_valid_date_range_renting CHECK ((departure_date > arrival_date))
+);
+
+CREATE VIEW public.customerlistview AS
+ SELECT DISTINCT customer.sin_number,
+    customer.first_name,
+    customer.middle_initial,
+    customer.last_name,
+    customer.street_number,
+    customer.street_name,
+    customer.unit_number,
+    customer.city,
+    customer.province,
+    customer.country,
+    customer.postal_code,
+    customer.registration_date
+   FROM (( SELECT customer_1.sin_number,
+            customer_1.first_name,
+            customer_1.middle_initial,
+            customer_1.last_name,
+            customer_1.street_number,
+            customer_1.street_name,
+            customer_1.unit_number,
+            customer_1.city,
+            customer_1.province,
+            customer_1.country,
+            customer_1.postal_code,
+            customer_1.registration_date,
+            renting.brand_id,
+            renting.franchise_id
+           FROM (public.customer customer_1
+             JOIN public.renting ON (((customer_1.sin_number)::text = (renting.customer_sin)::text)))
+          ORDER BY renting.brand_id, renting.franchise_id) customer_renting
+     JOIN public.customer ON (((customer_renting.sin_number)::text = (customer.sin_number)::text)));
+
+CREATE TABLE public.employee (
+    sin_number character varying(9) NOT NULL,
+    brand_id integer NOT NULL,
+    franchise_id integer NOT NULL,
+    first_name character varying(20),
+    middle_initial character varying(20),
+    last_name character varying(20),
+    street_number integer,
+    street_name character varying(20),
+    unit_number integer,
+    city character varying(20),
+    province character varying(2),
+    country character varying(2),
+    postal_code character varying(6),
+    salary numeric(8,2) NOT NULL,
+    role character varying(20),
+    CONSTRAINT chk_role CHECK (((role)::text = ANY ((ARRAY['concierge'::character varying, 'housekeeper'::character varying, 'manager'::character varying])::text[])))
+);
+
+CREATE TABLE public.hotel_franchise (
+    brand_id integer NOT NULL,
+    franchise_id integer NOT NULL,
+    star_category integer,
+    number_of_rooms integer,
+    street_number integer,
+    street_name character varying(20),
+    city character varying(20),
+    province character varying(2),
+    country character varying(2),
+    postal_code character varying(6),
+    CONSTRAINT chk_num_rooms CHECK ((number_of_rooms >= 0)),
+    CONSTRAINT chk_num_stars CHECK (((star_category >= 1) AND (star_category <= 5)))
+);
+
+CREATE TABLE public.inst_amenity (
+    brand_id integer NOT NULL,
+    franchise_id integer NOT NULL,
+    room_number integer NOT NULL,
+    amenity character varying(20) NOT NULL,
+    CONSTRAINT chk_room_amenity CHECK (((amenity)::text = ANY ((ARRAY['tv'::character varying, 'air conditioning'::character varying, 'fridge'::character varying])::text[])))
+);
+
+CREATE TABLE public.inst_brand_email (
+    brand_id integer,
+    email_address character varying(50) NOT NULL
+);
+
+CREATE TABLE public.inst_brand_phone (
+    brand_id integer,
+    phone_number character varying(20) NOT NULL
+);
+
+CREATE TABLE public.inst_customer_phone (
+    sin_number character varying(20) NOT NULL,
+    phone_number character varying(20) NOT NULL
+);
+
+CREATE TABLE public.inst_franchise_email (
+    brand_id integer,
+    franchise_id integer,
+    email_address character varying(20) NOT NULL
+);
+
+CREATE TABLE public.inst_franchise_phone (
+    brand_id integer,
+    franchise_id integer,
+    phone_number character varying(20) NOT NULL
+);
+
+CREATE TABLE public.parent_hotel_brand (
+    brand_id integer NOT NULL,
+    street_number integer,
+    street_name character varying(20),
+    unit_number integer,
+    city character varying(20),
+    province character varying(2),
+    country character varying(2),
+    postal_code character varying(6),
+    number_of_hotels integer,
+    brand_name character varying(20),
+    CONSTRAINT chk_hotel_id CHECK (((brand_id > 0) AND (brand_id < 7)))
+);
+
+CREATE TABLE public.renting_history (
+    renting_number integer NOT NULL,
+    customer_sin character varying(9),
+    employee_sin character varying(9),
+    brand_id integer,
+    franchise_id integer,
+    room_number integer,
+    booking_number integer,
+    arrival_date date,
+    departure_date date
+);
+
+CREATE SEQUENCE public.renting_renting_number_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+CREATE TABLE public.room (
+    brand_id integer NOT NULL,
+    franchise_id integer NOT NULL,
+    room_number integer NOT NULL,
+    price numeric(8,2),
+    capacity character varying(20),
+    extendable boolean,
+    view character varying(20),
+    CONSTRAINT chk_room_view CHECK (((view)::text = ANY ((ARRAY['mountain'::character varying, 'sea'::character varying, 'none'::character varying])::text[])))
+);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////ALTER TABLES///////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ALTER TABLE ONLY public.renting ALTER COLUMN renting_number SET DEFAULT nextval('public.renting_renting_number_seq'::regclass);
+
+ALTER TABLE ONLY public.booking_history
+    ADD CONSTRAINT booking_history_pkey PRIMARY KEY (booking_number);
+
+ALTER TABLE ONLY public.booking
+    ADD CONSTRAINT booking_pkey PRIMARY KEY (booking_number);
+
+ALTER TABLE ONLY public.customer
+    ADD CONSTRAINT customer_pkey PRIMARY KEY (sin_number);
+
+ALTER TABLE ONLY public.employee
+    ADD CONSTRAINT employee_pkey PRIMARY KEY (sin_number);
+
+ALTER TABLE ONLY public.hotel_franchise
+    ADD CONSTRAINT hotel_franchise_brand_id_franchise_id_key UNIQUE (brand_id, franchise_id);
+
+ALTER TABLE ONLY public.hotel_franchise
+    ADD CONSTRAINT hotel_franchise_pkey PRIMARY KEY (brand_id, franchise_id);
+
+ALTER TABLE ONLY public.inst_amenity
+    ADD CONSTRAINT inst_amenity_pkey PRIMARY KEY (brand_id, franchise_id, room_number, amenity);
+
+ALTER TABLE ONLY public.inst_brand_email
+    ADD CONSTRAINT inst_brand_email_pkey PRIMARY KEY (email_address);
+
+ALTER TABLE ONLY public.inst_brand_phone
+    ADD CONSTRAINT inst_brand_phone_pkey PRIMARY KEY (phone_number);
+
+ALTER TABLE ONLY public.inst_customer_phone
+    ADD CONSTRAINT inst_customer_phone_pkey PRIMARY KEY (sin_number, phone_number);
+
+ALTER TABLE ONLY public.inst_franchise_email
+    ADD CONSTRAINT inst_franchise_email_pkey PRIMARY KEY (email_address);
+
+ALTER TABLE ONLY public.inst_franchise_phone
+    ADD CONSTRAINT inst_franchise_phone_pkey PRIMARY KEY (phone_number);
+
+ALTER TABLE ONLY public.parent_hotel_brand
+    ADD CONSTRAINT parent_hotel_brand_pkey PRIMARY KEY (brand_id);
+
+ALTER TABLE ONLY public.renting_history
+    ADD CONSTRAINT renting_history_pkey PRIMARY KEY (renting_number);
+
+ALTER TABLE ONLY public.renting
+    ADD CONSTRAINT renting_pkey PRIMARY KEY (renting_number);
+
+ALTER TABLE ONLY public.room
+    ADD CONSTRAINT room_pkey PRIMARY KEY (brand_id, franchise_id, room_number);
+
+ALTER TABLE ONLY public.booking
+    ADD CONSTRAINT booking_brand_id_fkey FOREIGN KEY (brand_id, franchise_id, room_number) REFERENCES public.room(brand_id, franchise_id, room_number) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.booking
+    ADD CONSTRAINT booking_customer_sin_fkey FOREIGN KEY (customer_sin) REFERENCES public.customer(sin_number);
+
+ALTER TABLE ONLY public.employee
+    ADD CONSTRAINT employee_brand_id_fkey FOREIGN KEY (brand_id, franchise_id) REFERENCES public.hotel_franchise(brand_id, franchise_id);
+
+ALTER TABLE ONLY public.hotel_franchise
+    ADD CONSTRAINT hotel_franchise_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES public.parent_hotel_brand(brand_id);
+
+ALTER TABLE ONLY public.inst_amenity
+    ADD CONSTRAINT inst_amenity_brand_id_fkey FOREIGN KEY (brand_id, franchise_id, room_number) REFERENCES public.room(brand_id, franchise_id, room_number) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.inst_brand_email
+    ADD CONSTRAINT inst_brand_email_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES public.parent_hotel_brand(brand_id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.inst_brand_phone
+    ADD CONSTRAINT inst_brand_phone_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES public.parent_hotel_brand(brand_id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.inst_customer_phone
+    ADD CONSTRAINT inst_customer_phone_sin_number_fkey FOREIGN KEY (sin_number) REFERENCES public.customer(sin_number);
+
+ALTER TABLE ONLY public.inst_franchise_email
+    ADD CONSTRAINT inst_franchise_email_brand_id_fkey FOREIGN KEY (brand_id, franchise_id) REFERENCES public.hotel_franchise(brand_id, franchise_id);
+
+ALTER TABLE ONLY public.inst_franchise_phone
+    ADD CONSTRAINT inst_franchise_phone_brand_id_fkey FOREIGN KEY (brand_id, franchise_id) REFERENCES public.hotel_franchise(brand_id, franchise_id);
+
+ALTER TABLE ONLY public.renting
+    ADD CONSTRAINT renting_booking_number_fkey FOREIGN KEY (booking_number) REFERENCES public.booking(booking_number);
+
+ALTER TABLE ONLY public.renting
+    ADD CONSTRAINT renting_brand_id_fkey FOREIGN KEY (brand_id, franchise_id, room_number) REFERENCES public.room(brand_id, franchise_id, room_number) ON UPDATE CASCADE ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.renting
+    ADD CONSTRAINT renting_customer_sin_fkey FOREIGN KEY (customer_sin) REFERENCES public.customer(sin_number);
+
+ALTER TABLE ONLY public.renting
+    ADD CONSTRAINT renting_employee_sin_fkey FOREIGN KEY (employee_sin) REFERENCES public.employee(sin_number);
+
+ALTER TABLE ONLY public.room
+    ADD CONSTRAINT room_brand_id_fkey FOREIGN KEY (brand_id, franchise_id) REFERENCES public.hotel_franchise(brand_id, franchise_id);
+
+ALTER TABLE ONLY public.booking
+    ADD CONSTRAINT table_booking_fk_rentnum FOREIGN KEY (renting_number) REFERENCES public.renting(renting_number);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////INDEX AND TRIGGERS////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CREATE INDEX amenity_index ON public.inst_amenity USING btree (amenity);
+
+CREATE INDEX room_index ON public.room USING btree (brand_id, franchise_id);
+
+CREATE TRIGGER move_booking_to_history_trigger BEFORE DELETE ON public.booking FOR EACH ROW EXECUTE PROCEDURE public.move_booking_to_history();
+
+CREATE TRIGGER move_renting_to_history_trigger BEFORE DELETE ON public.renting FOR EACH ROW EXECUTE PROCEDURE public.move_renting_to_history();
+
+CREATE TRIGGER update_booking_on_renting_trigger AFTER INSERT ON public.renting FOR EACH ROW EXECUTE PROCEDURE public.update_booking_on_renting();
+
+CREATE TRIGGER update_booking_on_renting_trigger2 AFTER INSERT ON public.renting FOR EACH ROW EXECUTE PROCEDURE public.update_booking_on_renting2();
+
+CREATE TRIGGER update_brand_on_franchise_delete_trigger BEFORE DELETE ON public.hotel_franchise FOR EACH ROW EXECUTE PROCEDURE public.update_brand_on_franchise_delete();
+
+CREATE TRIGGER update_franchise_on_room_delete_trigger BEFORE DELETE ON public.room FOR EACH ROW EXECUTE PROCEDURE public.update_franchise_on_room_delete();
+
+CREATE TRIGGER update_num_hotels_brand AFTER INSERT ON public.hotel_franchise FOR EACH ROW EXECUTE PROCEDURE public.update_num_hotels();
+
+CREATE TRIGGER update_num_room_franchise AFTER INSERT ON public.room FOR EACH ROW EXECUTE PROCEDURE public.update_num_rooms();
+
+CREATE TRIGGER verify_dates_before_booking_trigger BEFORE INSERT ON public.booking FOR EACH ROW EXECUTE PROCEDURE public.verify_dates_before_booking();
+
+CREATE TRIGGER verify_dates_before_renting_trigger BEFORE INSERT ON public.renting FOR EACH ROW EXECUTE PROCEDURE public.verify_dates_before_renting();
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////FUNCTIONS/////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CREATE FUNCTION public.checkdate(b_id integer, f_id integer, r_num integer, adat date, ddat date) RETURNS boolean
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+		IF (EXISTS(SELECT * FROM renting 
+			WHERE (renting.departure_date > adat AND renting.arrival_date < ddat) AND
+			(renting.brand_id = b_id AND renting.franchise_id = f_id AND renting.room_number = r_num) AND
+			(renting.archived = false))) OR  (EXISTS(SELECT * FROM booking 
+			WHERE (booking.departure_date > adat AND booking.arrival_date < ddat) AND
+			(booking.brand_id = b_id AND booking.franchise_id = f_id AND booking.room_number = r_num) AND
+			(booking.archived = false))) THEN
+			
+				RETURN false;
+		END IF;
+		IF (adat < CURRENT_DATE) THEN
+			raise NOTICE 'Date in the past';
+			RETURN false;
+		END IF;
+		RETURN true;
+	END
+$$;
+
+CREATE FUNCTION public.move_booking_to_history() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+		INSERT INTO public.booking_history(
+	booking_number, customer_sin, brand_id, franchise_id, room_number, renting_number, arrival_date, departure_date)
+	VALUES (OLD.booking_number, OLD.customer_sin, OLD.brand_id, OLD.franchise_id, OLD.room_number, OLD.renting_number, OLD.arrival_date, OLD.departure_date);
+	
+	RETURN OLD;
+  END;
+$$;
+
+CREATE FUNCTION public.move_renting_to_history() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+
+	INSERT INTO public.renting_history(
+	renting_number, customer_sin, employee_sin, brand_id, franchise_id, room_number, booking_number, arrival_date, departure_date)
+	VALUES (OLD.renting_number, OLD.customer_sin, OLD.employee_sin, OLD.brand_id, OLD.franchise_id, OLD.room_number, OLD.booking_number, OLD.arrival_date, OLD.departure_date);
+	
+	RETURN OLD;
+  END;
+$$;
+
+CREATE FUNCTION public.update_booking_on_renting() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+	IF EXISTS (SELECT * FROM booking WHERE booking_number = NEW.booking_number) THEN 
+		UPDATE booking SET renting_number = NEW.renting_number WHERE booking_number = NEW.booking_number;
+	END IF;
+	RETURN NEW;
+  END;
+$$;
+
+CREATE FUNCTION public.update_booking_on_renting2() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+	IF EXISTS (SELECT * FROM booking WHERE booking_number = NEW.booking_number) THEN 
+		UPDATE booking SET archived = true WHERE booking_number = NEW.booking_number;
+	END IF;
+	RETURN NEW;
+  END;
+$$;
+
+CREATE FUNCTION public.update_brand_on_franchise_delete() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+	IF EXISTS (SELECT * FROM parent_hotel_brand WHERE brand_id = OLD.brand_id) THEN 
+		UPDATE parent_hotel_brand SET number_of_hotels = number_of_hotels-1 WHERE brand_id = OLD.brand_id;
+	END IF;
+	RETURN OLD;
+  END;
+$$;
+
+CREATE FUNCTION public.update_franchise_on_room_delete() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+	IF EXISTS (SELECT * FROM hotel_franchise WHERE brand_id = OLD.brand_id AND franchise_id = OLD.franchise_id) THEN 
+		UPDATE hotel_franchise SET number_of_rooms = number_of_rooms-1 WHERE brand_id = OLD.brand_id AND franchise_id = OLD.franchise_id;
+	END IF;
+	RETURN OLD;
+  END;
+$$;
+
+CREATE FUNCTION public.update_num_hotels() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+	UPDATE parent_hotel_brand SET number_of_hotels = number_of_hotels+1 WHERE brand_id = NEW.brand_id;
+	RETURN NEW;
+  END;
+$$;
+
+CREATE FUNCTION public.update_num_rooms() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+	UPDATE hotel_franchise SET number_of_rooms = number_of_rooms+1 WHERE brand_id = NEW.brand_id AND franchise_id = NEW.franchise_id;
+	RETURN NEW;
+  END;
+$$;
+
+CREATE FUNCTION public.verify_dates_before_booking() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+	IF (EXISTS(SELECT * FROM renting 
+			WHERE (renting.departure_date > NEW.arrival_date AND renting.arrival_date < NEW.departure_date) AND
+			(renting.brand_id = NEW.brand_id AND renting.franchise_id = NEW.franchise_id AND renting.room_number = NEW.room_number) AND
+			(renting.archived = false))) OR  (EXISTS(SELECT * FROM booking 
+			WHERE (booking.departure_date > NEW.arrival_date AND booking.arrival_date < NEW.departure_date) AND
+			(booking.brand_id =  NEW.brand_id AND booking.franchise_id = NEW.franchise_id AND booking.room_number = NEW.room_number) AND
+			(booking.archived = false))) THEN 
+		raise NOTICE 'Date occupied';
+		RETURN null;
+	END IF;
+	IF (NEW.arrival_date < CURRENT_DATE) THEN
+		raise NOTICE 'Date in the past';
+		RETURN null;
+	END IF;
+	RETURN NEW;
+  END;
+$$;
+
+CREATE FUNCTION public.verify_dates_before_renting() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+	IF (EXISTS(SELECT * FROM renting 
+			WHERE (renting.departure_date > NEW.arrival_date AND renting.arrival_date < NEW.departure_date) AND
+			(renting.brand_id = NEW.brand_id AND renting.franchise_id = NEW.franchise_id AND renting.room_number = NEW.room_number) AND
+			(renting.archived = false))) OR  (EXISTS(SELECT * FROM booking 
+			WHERE (booking.departure_date > NEW.arrival_date AND booking.arrival_date < NEW.departure_date) AND
+			(booking.brand_id =  NEW.brand_id AND booking.franchise_id = NEW.franchise_id AND booking.room_number = NEW.room_number) AND
+			(booking.archived = false) AND (NOT (booking.booking_number = NEW.booking_number) OR (NEW.booking_number is null)) )) THEN 
+		raise NOTICE 'Date occupied';
+		RETURN null;
+	END IF;
+	IF (NEW.arrival_date = CURRENT_DATE) THEN
+		RETURN NEW;
+	END IF;
+	
+	raise NOTICE 'Check in date must equal CURRENT_DATE';
+	RETURN null;
+	
+  END;
+$$;

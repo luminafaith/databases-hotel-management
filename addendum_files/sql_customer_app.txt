@@ -1,0 +1,67 @@
+**Java Function QueryRooms(int priceMin, int priceMax, String capacity, String extendable, String view, String arrival_date, String departure_date, String city, String amenity)**
+
+1. Return count of results for next query - to initialize 2d matrix to store result
+SELECT COUNT(DISTINCT (room.brand_id,room.franchise_id,room.room_number))
+FROM (room NATURAL JOIN hotel_franchise), parent_hotel_brand, inst_amenity, checkDate(room.brand_id,room.franchise_id,room.room_number,'arrival_date'::date,'departure_date'::date)
+WHERE hotel_franchise.city = 'city' AND hotel_franchise.brand_id = parent_hotel_brand.brand_id 
+AND room.brand_id = inst_amenity.brand_id AND room.franchise_id = inst_amenity.franchise_id AND room.room_number = inst_amenity.room_number
+AND room.price > priceMin AND room.price < priceMax
+AND capacity LIKE 'capacity' AND  extendable = extendable AND view LIKE 'view'
+AND inst_amenity.amenity LIKE 'amenity' AND checkDate = true 
+
+2. Return list of available rooms that meet the provided criteria
+SELECT DISTINCT parent_hotel_brand.brand_name, room.brand_id, room.franchise_id, room.room_number, room.price, hotel_franchise.star_category,room.capacity, room.view, hotel_franchise.street_number, hotel_franchise.street_name
+FROM (room NATURAL JOIN hotel_franchise), parent_hotel_brand, inst_amenity, checkDate(room.brand_id,room.franchise_id,room.room_number,'arrival_date'::date,'departure_date'::date)
+WHERE hotel_franchise.city = 'city' AND hotel_franchise.brand_id = parent_hotel_brand.brand_id 
+AND room.brand_id = inst_amenity.brand_id AND room.franchise_id = inst_amenity.franchise_id AND room.room_number = inst_amenity.room_number
+AND room.price > priceMin AND room.price < priceMax
+AND capacity LIKE 'capacity' AND  extendable = extendable AND view LIKE 'view'
+AND inst_amenity.amenity LIKE 'amenity' AND checkDate = true 
+
+**Java Function reserveRoom(String customer_sin, String brand_id, String franchise_id, String room_number, String arrival_date, String departure_date)**
+
+1. Insert new booking in table booking given provided criteria and return booking_number (P.k)
+INSERT INTO public.booking(
+	booking_number, customer_sin, brand_id, franchise_id, room_number, renting_number, arrival_date, departure_date, archived)
+	VALUES (DEFAULT, customer_sin, brand_id, franchise_id, room_number, null, 'arrival_date'::date, 'departure_date'::date, false) RETURNING booking_number;
+
+**Java Function viewMyRooms(String customer_sin) //Variable date contains current date in (YYYY-MM-DD) format//** 
+
+1.Return count of results for next query - to initialize 2d matrix to store result
+SELECT count(*)
+FROM (booking a NATURAL JOIN parent_hotel_brand p ), hotel_franchise f
+WHERE customer_sin = 'customer_sin' AND arrival_date >= 'date' AND archived = false 
+AND f.brand_id = a.brand_id AND f.franchise_id = a.franchise_id 
+
+2. Return all bookings belonging to customer customer_sin
+SELECT a.booking_number, p.brand_name, p.brand_id, a.franchise_id, a.room_number, a.arrival_date, a.departure_date,f.street_number,f.street_name,f.city,f.province,f.country,f.postal_code 
+FROM (booking a NATURAL JOIN parent_hotel_brand p ), hotel_franchise f
+WHERE customer_sin = 'customer_sin' AND arrival_date >= 'date' AND archived = false 
+AND f.brand_id = a.brand_id AND f.franchise_id = a.franchise_id  
+
+**Java Function queryFranchise(String brand_name, int franchise_id) **
+
+1.Return address details from given franchise
+SELECT a.street_number, a.street_name, a.city, a.province, a.country, a.number_of_rooms FROM hotel_franchise a,parent_hotel_brand b
+WHERE a.brand_id = b.brand_id AND b.brand_name = 'brand_name' AND a.franchise_id = franchise_id) ; 
+
+2.Return email addresses from given franchise
+SELECT email_address FROM inst_franchise_email, parent_hotel_brand
+WHERE inst_franchise_email.brand_id = parent_hotel_brand.brand_id AND parent_hotel_brand.brand_name = 'brand_name' AND
+inst_franchise_email.franchise_id = franchise_id) ; 
+
+3.Return phone numbers from given franchise
+SELECT phone_number FROM inst_franchise_phone,parent_hotel_brand
+WHERE inst_franchise_phone.brand_id = parent_hotel_brand.brand_id AND parent_hotel_brand.brand_name = 'brand_name' AND
+inst_franchise_phone.franchise_id = franchise_id) ; 
+
+**Java Function returnName(String customer_sin)**
+
+1. Return String Client name from customer_sin
+SELECT first_name,last_name FROM customer WHERE sin_number = 'customer_sin'
+
+**Java Function returnRoomAmenityStrung(int brand_id, int franchise_id, int room_number) 
+
+1. Return amenities for a given room
+SELECT amenity from inst_amenity
+WHERE brand_id = brand_id AND franchise_id = franchise_id AND room_number = room_number; 
